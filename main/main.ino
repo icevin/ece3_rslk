@@ -4,7 +4,13 @@ const int left_nslp_pin=31; // nslp ==> awake & ready for PWM
 const int left_dir_pin=29;
 const int left_pwm_pin=40;
 
+
+uint16_t sensorValues[8];
+
 void setup() {
+  
+  ECE3_Init();
+  
   pinMode(P5_2, INPUT);
   pinMode(P5_0, INPUT);
   pinMode(P10_4, INPUT);
@@ -25,16 +31,6 @@ void setup() {
   digitalWrite(left_dir_pin,LOW);
   digitalWrite(left_nslp_pin,HIGH);
 
-
-  
-  IR.setSensorPins((const uint8_t[]) {65, 48, 64, 47, 52, 68, 53, 69}, 8);
-  IR.setEmitterPins(45, 61);
-  IR.setTimeout(2500);
-
-}
-
-void ECE3_read_IR(uint16_t * sensorValues){
-  return IR.read(sensorValues);
 }
 
 void l_button() {
@@ -55,6 +51,7 @@ bool l_oldState2 = 0;
 
 long l_tracker = 0;
 long l_dir = 0;
+
 void ENC_L() {
     l_newState1 = digitalRead(L_PIN1);
     l_newState2 = digitalRead(L_PIN2);
@@ -172,11 +169,42 @@ void ENC_R() {
       r_tracker--;
 }
 
+const int weights[] = {8, 4, 2, 1, -1, -2, -4, -8};
+const int offset[] = {483, 460, 553, 437, 483, 529, 506, 530};
+
+uint8_t flag = 0;
+
+int calc_error() {
+  long error = 0;
+  uint8_t counter = 0;
+  for (unsigned char i = 0; i < 8; i++) {
+    if (sensorValues[i] > 2000) {
+      counter++;
+    }
+    error += (sensorValues[i] - offset[i]) * weights[i];
+  }
+  if (counter >= 6) {
+    flag = 1;
+  }
+  return error/4;
+}
+
 void loop() {
-  Serial.print("l_pos: ");
-  Serial.print(l_tracker);
-  Serial.print(" r_pos: ");
-  Serial.print(r_tracker);
+//  Serial.print("l_pos: ");
+//  Serial.print(l_tracker);
+//  Serial.print(" r_pos: ");
+//  Serial.print(r_tracker);
+  ECE3_read_IR(sensorValues);
+  for (unsigned char i = 0; i < 8; i++)
+  {
+    Serial.print(sensorValues[i]);
+    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
+  }
   Serial.println();
-  delay(300);
+  Serial.print("error: ");
+  Serial.print(calc_error());
+  Serial.println();  
+  Serial.println();
+
+  delay(50);
 }
