@@ -4,6 +4,10 @@ const int left_nslp_pin=31; // nslp ==> awake & ready for PWM
 const int left_dir_pin=29;
 const int left_pwm_pin=40;
 
+const int right_nslp_pin=11;
+const int right_dir_pin=30;
+const int right_pwm_pin=39;
+
 
 uint16_t sensorValues[8];
 
@@ -20,6 +24,9 @@ void setup() {
 
   pinMode(PUSH2, INPUT_PULLUP);
   attachInterrupt(PUSH2, l_button, FALLING);
+
+  pinMode(PUSH1, INPUT_PULLUP);
+  attachInterrupt(PUSH1, r_button, FALLING);
   
   Serial.begin(9600);
   Serial.println("Basic Encoder Test:");
@@ -28,14 +35,69 @@ void setup() {
   pinMode(left_dir_pin,OUTPUT);
   pinMode(left_pwm_pin,OUTPUT);
 
-  digitalWrite(left_dir_pin,LOW);
-  digitalWrite(left_nslp_pin,HIGH);
+  pinMode(right_nslp_pin,OUTPUT);
+  pinMode(right_dir_pin,OUTPUT);
+  pinMode(right_pwm_pin,OUTPUT);
 
+
+  digitalWrite(left_dir_pin,LOW);
+  digitalWrite(right_dir_pin,LOW);
+  
+  digitalWrite(left_nslp_pin,HIGH);
+  digitalWrite(right_nslp_pin,HIGH);
 }
 
+void setL(int speed) {
+  if (speed > 127)
+    speed = 127;
+  if (speed < -127)
+    speed = -127;
+  if (speed == 0) {
+    analogWrite(left_pwm_pin, 0);
+    return;
+  }
+  
+  if (speed > 0)
+      digitalWrite(left_dir_pin,LOW);
+  else
+      digitalWrite(left_dir_pin,HIGH);
+  analogWrite(left_pwm_pin, abs(speed));
+}
+
+void setR(int speed) {
+  if (speed > 127)
+    speed = 127;
+  if (speed < -127)
+    speed = -127;
+  if (speed == 0) {
+    analogWrite(right_pwm_pin, 0);
+    return;
+  }
+  
+  if (speed > 0)
+      digitalWrite(right_dir_pin,LOW);
+  else
+      digitalWrite(right_dir_pin,HIGH);
+  analogWrite(right_pwm_pin, abs(speed));
+}
+
+uint8_t flag = 0;
 void l_button() {
-    int leftSpd = 70;
-    analogWrite(left_pwm_pin, leftSpd);
+    flag = 0;
+}
+
+void r_button() {
+    flag = 1;
+//    int rightSpd = 127;
+//    if (Serial.available() > 0) {
+//      // read the incoming byte:
+//      rightSpd = Serial.read();
+//  
+//      // say what you got:
+//      Serial.print("I received: ");
+//      Serial.println(rightSpd, DEC);
+//    }
+//    analogWrite(right_pwm_pin, rightSpd);
 }
 
 
@@ -169,10 +231,9 @@ void ENC_R() {
       r_tracker--;
 }
 
+
 const int weights[] = {8, 4, 2, 1, -1, -2, -4, -8};
 const int offset[] = {483, 460, 553, 437, 483, 529, 506, 530};
-
-uint8_t flag = 0;
 
 int calc_error() {
   long error = 0;
@@ -186,25 +247,98 @@ int calc_error() {
   if (counter >= 6) {
     flag = 1;
   }
-  return error/4;
+  return error/8;
+}
+
+
+
+const int max_drive = 56;
+#define PID_INTEGRAL_LIMIT 40
+
+float pid_Kp = 0.2;
+float pid_Ki = 0.0;
+float pid_Kd = 0.0;
+
+float pidCurrError = 0;
+float pidLastError = 0;
+float pidIntegral = 0;
+float pidDerivative = 0;
+int pidDrive = 0;
+void pidController(int pidCurrError)
+{
+    pidCurrError = calc_error();
+    
+    if(pid_Ki!=0)
+    {
+      if(fabs(pidCurrError) < PID_INTEGRAL_LIMIT)
+        pidIntegral = pidIntegral + pidCurrError;
+      else
+        pidIntegral = 0;
+    }
+    else
+      pidIntegral = 0;
+      
+    if(pidCurrError !=0)
+    {
+      pidDerivative = pidCurrError - pidLastError;
+      pidLastError = pidCurrError;
+    }
+    else
+    {
+      pidDerivative = 0;
+    }
+    
+    if(pidCurrError < 4.0)
+    {
+      pidIntegral = 0;
+    }
+    pidDrive+= (pid_Kp*pidCurrError) + (pid_Ki*pidIntegral) + (pid_Kd * pidDerivative);
+
+    if(pidDrive > max_drive)
+      pidDrive = max_drive;
+    if(pidDrive < -max_drive)
+      pidDrive = -max_drive;
+
+    pidLastError = pidCurrError;
 }
 
 void loop() {
+    ECE3_read_IR(sensorValues);
+    int error = calc_error();
+    pidController(error);
+
+    if(!flag) {
+      if(pidDrive < 0) {
+        setL(max_drive + pidDrive);
+        setR(max_drive);
+      } else {
+        setL(max_drive);
+        setR(max_drive - pidDrive);
+      }
+    } else {
+      setL(0);
+      setR(0);
+    }
+    Serial.println();
+    Serial.print("error: ");
+    Serial.print(error);
+    Serial.print(" drive: ");
+    Serial.print(pidDrive);
+    Serial.println();  
+    Serial.println();
+
+  
 //  Serial.print("l_pos: ");
 //  Serial.print(l_tracker);
 //  Serial.print(" r_pos: ");
 //  Serial.print(r_tracker);
-  ECE3_read_IR(sensorValues);
-  for (unsigned char i = 0; i < 8; i++)
-  {
-    Serial.print(sensorValues[i]);
-    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
-  }
-  Serial.println();
-  Serial.print("error: ");
-  Serial.print(calc_error());
-  Serial.println();  
-  Serial.println();
+
+//  for (unsigned char i = 0; i < 8; i++)
+//  {
+//    Serial.print(sensorValues[i]);
+//    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
+//  }
+
 
   delay(50);
 }
