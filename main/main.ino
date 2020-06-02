@@ -228,7 +228,7 @@ int calc_error() {
   long error = 0;
   uint8_t counter = 0;
   for (unsigned char i = 0; i < 8; i++) {
-    if (sensorValues[i] > 2000) {
+    if (sensorValues[i] > 2100) {
       counter++;
     }
     error += (sensorValues[i] - offset[i]) * weights[i];
@@ -236,27 +236,27 @@ int calc_error() {
 //  Serial.print("Counter: ");
 //  Serial.print(counter);
 //  Serial.println();
-  if (counter >= 6) {
+  if (counter >= 5) {
     if(lines < 4 && nextEnd == 0) {
       turnCCW();
       nextEnd = 1;
-    } else {
+    } else if (nextEnd == 1 || lines > 40) {
       flag = 1;
     }
     lines++;
   }
-  return error/16;
+  return error/4;
 }
 
 
 
-const int max_drive = 76;
+const int max_drive = 100;
 const int max_motor = 100;
 #define PID_INTEGRAL_LIMIT 40
 
-float pid_Kp = 0.3;
-float pid_Ki = 0.02;
-float pid_Kd = 2.3;
+float pid_Kp = 0.2;
+float pid_Ki = 0.001;
+float pid_Kd = 0.6;
 
 float pidCurrError = 0;
 float pidLastError = 0;
@@ -366,8 +366,12 @@ void spin180() {
 
       if(abs(l_err) < 20 && abs(r_err) < 20) {
          turn_done = 1;
+         setL(80);
+         setR(80);
+         delay(200);
          setL(0);
          setR(0);
+         flag = 0;
       }
       l_lastErr = l_err;
       r_lastErr = r_err;
@@ -417,32 +421,35 @@ void loop() {
       Serial.println("///////////////////////////////////////////////");
     } else if(!flag && !allstop) {
       pidController(error);
-      if(pidDrive < 0) {
+      if(pidDrive < -10) {
         setL(max_motor + pidDrive);
         setR(max_motor);
-      } else {
+      } else if (pidDrive > 10) {
         setL(max_motor);
         setR(max_motor - pidDrive);
+      } else {
+        setL(max_motor);
+        setR(max_motor);
       }
     } else {
       setL(0);
       setR(0);
     }
-
-    Serial.print("lines: ");
-    Serial.print(lines);
-    Serial.print("flag: ");
-    Serial.print(flag);
-    Serial.print("turn done?");
-    Serial.print(turn_done);
+//
+//    Serial.print("lines: ");
+//    Serial.print(lines);
+//    Serial.print("flag: ");
+//    Serial.print(flag);
+//    Serial.print("turn done?");
+//    Serial.print(turn_done);
+//    Serial.println();
     Serial.println();
-//    Serial.println();
-//    Serial.print("error: ");
-//    Serial.print(error);
-//    Serial.print(" drive: ");
-//    Serial.print(pidDrive);
-//    Serial.println();  
-//    Serial.println();
+    Serial.print("error: ");
+    Serial.print(error);
+    Serial.print(" drive: ");
+    Serial.print(pidDrive);
+    Serial.println();  
+    Serial.println();
 
   
 //  Serial.print("l_pos: ");
