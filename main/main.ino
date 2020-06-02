@@ -246,13 +246,13 @@ int calc_error() {
   long error = 0;
   uint8_t counter = 0;
   for (unsigned char i = 0; i < 8; i++) {
-    if (sensorValues[i] > 2100) {
+    if (sensorValues[i] > 1800) {
       counter++;
     }
     error += (sensorValues[i] - offset[i]) * weights[i];
   }
 
-  if (counter >= 4) {
+  if (counter >= 6) {
     rawTimes++;
     if (rawTimes > 40)
       flag = 1;
@@ -332,6 +332,11 @@ void pidController(int pidCurrError)
   pidLastError = pidCurrError;
 }
 
+
+
+int allstop = 0;
+int turns_done = 0;
+
 bool turn_done = true;
 int l_dest = 380;
 int r_dest = -380;
@@ -355,8 +360,11 @@ float d_kp = 0.4;
 float d_ki = 0.1;
 float d_kd = 0.2;
 
+int guard = 0;
+
 void spin180() {
   if (!turn_done) {
+          guard = 1;
 //    Serial.print("l_pos: ");
 //    Serial.print(l_tracker);
 //    Serial.print(" r_pos: ");
@@ -396,13 +404,39 @@ void spin180() {
     setR(r_pid);
 
     if (abs(l_err) < 20 && abs(r_err) < 20) {
-      turn_done = 1;
-      setL(80);
-      setR(80);
-      delay(200);
-      setL(0);
-      setR(0);
+      nextEnd = 0;
       flag = 0;
+      guard = 1;
+
+      setL(100);
+      setR(100);
+      delay(50);
+      setL(100);
+      setR(100);
+      delay(50);
+      
+      setL(100);
+      setR(100);
+      delay(50);
+      
+      setL(100);
+      setR(100);
+      delay(50);
+      
+      setL(100);
+      setR(100);
+      delay(50);
+      
+      setL(100);
+      setR(100);
+      delay(50);
+      
+      turn_done = 1;
+
+      flag = 0;
+      allstop = 0;
+      nextEnd = 1;
+      guard = 0;
     }
     l_lastErr = l_err;
     r_lastErr = r_err;
@@ -414,8 +448,8 @@ void turnCW() {
   l_tracker = 0;
   r_tracker = 0;
   turn_done = false;
-  l_dest = 380;
-  r_dest = -380;
+  l_dest = 370;
+  r_dest = -370;
   spin180();
 }
 
@@ -427,20 +461,18 @@ void turnCCW() {
   r_dest = 380;
 }
 
-int allstop = 0;
-int turns_done = 0;
 
 void loop() {
   ECE3_read_IR(sensorValues);
   int error = calc_error();
 
-  if (allstop == 1) {
+  if (allstop == 1 && guard == 0) {
     setL(0);
     setR(0);
     return;
   }
 
-  if (flag == 1) {
+  if (flag == 1 && guard == 0) {
     allstop = 1;
   }
 
