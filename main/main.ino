@@ -247,17 +247,18 @@ int calc_error() {
   if (counter >= 6) {
     flag = 1;
   }
-  return error/8;
+  return error/16;
 }
 
 
 
 const int max_drive = 56;
+const int max_motor = 90;
 #define PID_INTEGRAL_LIMIT 40
 
 float pid_Kp = 0.2;
 float pid_Ki = 0.0;
-float pid_Kd = 0.0;
+float pid_Kd = 0.9;
 
 float pidCurrError = 0;
 float pidLastError = 0;
@@ -309,11 +310,11 @@ void loop() {
 
     if(!flag) {
       if(pidDrive < 0) {
-        setL(max_drive + pidDrive);
-        setR(max_drive);
+        setL(max_motor + pidDrive);
+        setR(max_motor);
       } else {
-        setL(max_drive);
-        setR(max_drive - pidDrive);
+        setL(max_motor);
+        setR(max_motor - pidDrive);
       }
     } else {
       setL(0);
