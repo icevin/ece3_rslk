@@ -250,13 +250,13 @@ int calc_error() {
 
 
 
-const int max_drive = 100;
+const int max_drive = 70;
 const int max_motor = 100;
 #define PID_INTEGRAL_LIMIT 40
 
-float pid_Kp = 0.2;
+float pid_Kp = 0.6;
 float pid_Ki = 0.001;
-float pid_Kd = 0.6;
+float pid_Kd = 3.6;
 
 float pidCurrError = 0;
 float pidLastError = 0;
